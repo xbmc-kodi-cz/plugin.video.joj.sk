@@ -367,16 +367,17 @@ class JojContentProvider(ContentProvider):
             sou = 'andromeda'
             # if channel in 'plus':
             #     channel = 'jojplus'
-            # if channel == 'joj24':
-            #     channel = 'joj_news'
+            if channel == 'joj24':
+                channel = 'joj_news'
                 # sou = 'andromeda'            
             channel_quality_map = {'joj': ('404', '720', '1080'),
                                    'plus': ('404', '720', '1080'),
                                    'wau': ('404', '720', '1080'),
-                                   'news': ('404', '720', '1080'),
+                                   'joj_news': ('404', '720', '1080'),
                                    'jojsport': ('540', '720', '1080')
                                    }
             # https://live.cdn.joj.sk/live/andromeda/nrsr/live.m3u8
+            # https://live.cdn.joj.sk/live/andromeda/joj_news-720.m3u8
             for quality in channel_quality_map[channel]:
                 item = self.video_item()
                 item['quality'] = quality + 'p'
