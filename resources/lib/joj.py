@@ -27,7 +27,7 @@ from http import cookiejar
 import random
 from urllib.parse import urlparse
 from xml.etree.ElementTree import fromstring
-
+import xbmcgui
 import util
 from provider import ContentProvider
 
@@ -207,8 +207,9 @@ class JojContentProvider(ContentProvider):
                         if t:
                             d, m, y = int(t.group(1)), int(t.group(2)), int(t.group(3))
                             item_subtitle = '{:02d}.{:02d}.{}'.format(d, m, y)
-
-                    item['title'] = 'Epizóda {:02d}: [COLOR FFFFAA00]{}[/COLOR] | [COLOR FFB2D4F5]{}[/COLOR]'.format(item_episode, item['title'], item_subtitle)
+                        item['title'] = 'Epizóda {:02d}: [COLOR FFFFAA00]{}[/COLOR] | [COLOR FFB2D4F5]{}[/COLOR]'.format(item_episode, item['title'], item_subtitle)
+                    else:
+                        item['title'] = '[COLOR FFFFAA00]{}[/COLOR] | [COLOR FFB2D4F5]{}[/COLOR]'.format(item['title'], item_subtitle)
                     result.append(item)
             title_to_key = {
                 'Dátum':'date',
@@ -404,6 +405,9 @@ class JojContentProvider(ContentProvider):
                 vdata = util.substr(data, '<div class="intro">', '</div>')
             if not vdata:
                 vdata = util.substr(data, '<div style="position:relative !important;', '</div>')
+            if not vdata:
+                xbmcgui.Dialog().ok('Error','Nedostupné')
+                return
             iframe_url = re.search('<iframe src="([^"]+)"', vdata).group(1)
             #print('iframe_url = ', iframe_url)
             player_str = urllib.request.urlopen(iframe_url).read()
@@ -423,7 +427,7 @@ class JojContentProvider(ContentProvider):
             bitrates_str = re.search(r'var src = {(.+?)};', d_player_str, re.DOTALL).group(1)
             #print('bitrates:', bitrates_str)
             bitrates_url = re.search(r'"mp4": \[(.+?)\]', bitrates_str, re.DOTALL).group(1)
-            bitrates_url = bitrates_url.replace("'","").replace('\n','').replace(' ','').split(',')
+            bitrates_url = bitrates_url.replace("'","").replace('\n','').replace(' ','').replace('"','').split(',')
             for idx, url in enumerate(bitrates_url):
                 item = self.video_item()
                 item['img'] = poster_url
@@ -434,4 +438,3 @@ class JojContentProvider(ContentProvider):
         if select_cb:
             return select_cb(result)
         return result
-
