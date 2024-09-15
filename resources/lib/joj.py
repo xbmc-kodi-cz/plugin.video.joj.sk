@@ -312,10 +312,10 @@ class JojContentProvider(ContentProvider):
                     item['img'] = data[kk]['img']
             result.append(item)
 
-        oops = ' [COLOR FFFF4D4D](nefunkčné)[/COLOR]'
-        result.append(self.dir_item("JOJ archív" + oops, BASE_URL["JOJ"]))
-        result.append(self.dir_item("JOJ Plus archív" + oops, BASE_URL["JOJ Plus"]))
-        result.append(self.dir_item("WAU archív" + oops, BASE_URL["WAU"]))
+        #oops = ' [COLOR FFFF4D4D](nefunkčné)[/COLOR]'
+        result.append(self.dir_item("JOJ archív" , BASE_URL["JOJ"]))
+        result.append(self.dir_item("JOJ Plus archív" , BASE_URL["JOJ Plus"]))
+        result.append(self.dir_item("WAU archív" , BASE_URL["WAU"]))
         return result
 
     def subcategories(self, base_url):
@@ -370,13 +370,13 @@ class JojContentProvider(ContentProvider):
             sou = 'andromeda'
             # if channel in 'plus':
             #     channel = 'jojplus'
-            # if channel == 'joj24':
-            #     channel = 'joj_news'
+            if channel == 'joj24':
+                 channel = 'joj_news'
                 # sou = 'andromeda'            
             channel_quality_map = {'joj': ('404', '720', '1080'),
                                    'plus': ('404', '720', '1080'),
                                    'wau': ('404', '720', '1080'),
-                                   'news': ('404', '720', '1080'),
+                                   'joj_news': ('404', '720', '1080'),
                                    'jojsport': ('540', '720', '1080'),
                                    'cinema': ('404', '720', '1080'),
                                    }
