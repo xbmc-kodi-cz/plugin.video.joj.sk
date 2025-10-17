@@ -22,40 +22,45 @@
 # */
 
 import re
-import urllib
-from http import cookiejar
+import util
+import json
 import random
+import urllib
+
+from http import cookiejar
 from urllib.parse import urlparse
 from xml.etree.ElementTree import fromstring
-
-import util
 from provider import ContentProvider
+
 
 BASE_URL = {"JOJ":  "https://www.joj.sk",
             "JOJ Plus": "http://plus.joj.sk",
             "WAU":      "http://wau.joj.sk"}
 
-LIVE_URL = {"JOJ":      "http://joj.sk",
-            "JOJ Plus": "http://plus.joj.sk",
-            "WAU":      "http://wau.joj.sk",
-            "JOJ24":    "https://joj24.noviny.sk/",
-            "JOJSport": "https://jojsport.joj.sk/",
-            "Jojko":    "https://jojko.joj.sk/",
-            "JOJ Cinema": "https://cinema.cz/"}
+# LIVE_URL = {"JOJ":      "http://joj.sk",
+#             "JOJ Plus": "https://www.joj.sk/live/2-plus",
+#             "WAU":      "http://wau.joj.sk",
+#             "JOJ24":    "https://joj24.noviny.sk/",
+#             "JOJSport": "https://jojsport.joj.sk/",
+#             "Jojko":    "https://jojko.joj.sk/",
+#             "JOJ Cinema": "https://cinema.cz/"}
 
-JOJ_NAMES = {'JOJ': 'JOJ',
-            'JOJ Plus': 'PLUS', 
-            'WAU': 'WAU',
-            'JOJ24': 'JOJ24',
-            'JOJSport': 'JOJ Šport',
-            'Jojko': 'JOJKO',
-            'JOJ Cinema': 'CINEMA'}
+# JOJ_NAMES = {'JOJ': 'JOJ',
+#             'JOJ Plus': 'PLUS', 
+#             'WAU': 'WAU',
+#             'JOJ24': 'JOJ24',
+#             'JOJSport': 'JOJ Šport',
+#             'Jojko': 'JOJKO',
+#             'JOJ Cinema': 'CINEMA'}
 
 class JojContentProvider(ContentProvider):
+
+
     def __init__(self, username=None, password=None, filter=None):
         ContentProvider.__init__(self, 'joj.sk', 'http://www.joj.sk/', username, password, filter)
         opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cookiejar.LWPCookieJar()))
         urllib.request.install_opener(opener)
+        self.info('=>> INIT <===')
         self.debugging = True
 
     def debug(self, text):
@@ -272,25 +277,19 @@ class JojContentProvider(ContentProvider):
             return result
         return self.list_show(url, list_episodes=True)
 
+
     def categories(self):
+        # self.info ('== categories ==')
         result = []
-        data = self.liveInfo()
-        for k, v in LIVE_URL.items():
+        url = 'https://www.joj.sk/live/1-JOJ'
+        datas, r = self.liveInfo(url)
+        for k, data in datas.items():
             item = self.video_item()
-            name = JOJ_NAMES.get(k)
-
-            if k == 'JOJSport':
-                name += ' [COLOR FFFF4D4D](zasekáva sa)[/COLOR]'
-
-            item['title'] = name + ' [COLOR FFFFFF80](LIVE)[/COLOR]'
-            item['url'] = v + '/live.html'
-
-            if k in JOJ_NAMES:
-                kk = JOJ_NAMES[k]
-                if kk:
-                    item['plot'] = data[kk]['desc']
-                    item['img'] = data[kk]['img']
-
+            item['title']         = data['title'] + ' [COLOR FFFFFF80](LIVE)[/COLOR]'
+            item['plot']          = data['desc']
+            item['img']           = data['img']
+            item['url']           = data['url']
+            item['livestream_id'] = data['livestream_id']
             result.append(item)
 
         oops = ' [COLOR FFFF4D4D](nefunkčné)[/COLOR]'
@@ -299,8 +298,8 @@ class JojContentProvider(ContentProvider):
         result.append(self.dir_item("WAU archív" + oops, BASE_URL["WAU"]))
         return result
 
+
     def subcategories(self, base_url):
-        # return self.list_base(base_url + '/archiv-filter')
         return self.list_base(base_url + '/archiv')
 
     def removeTags(self, text):
@@ -309,63 +308,77 @@ class JojContentProvider(ContentProvider):
             text = re.sub('^[ ]+|[ ]+$', '', text)
             return text
 
-    def liveInfo(self):
-        data_new = {}
-        url = 'https://live.joj.sk/'
+    def liveInfo(self, url):
         data = util.request(url)
-        s = re.finditer(' <div class="col-xs-12 col-sm-6 col-md-4 i h-.">(?P<data>.*?<\/div>)[ \n]+<\/div>[ \n]+<\/div>', data, re.S)
+        reg_live = '<joj-live-player data-component-name="LivePlayerPlugin" :data=\'(?P<live>.*?)\'><\/joj-live-player>'
+        s = re.search(reg_live, data)
+        data_new = {}
+        data_new2 = {}
         if s:
-            for ss in s:
-                d = ss['data']
-                img, title, time = None, None, None
-                a = re.search('title="(?P<title>.*?)" .*?<img src="(?P<img>.*?)"', d, re.S)
-                if a:
-                    img, title = a.group('img'), a.group('title')
+            a = s.group('live')
+            json_string = a.replace("&#123;", "{").replace("&#125;", "}").replace("&quot;", '"')
+            for channel in json.loads(json_string).get('channels'):
+                if channel.get('is_premium') == False:
+                    title         = channel.get('name')
+                    img           = channel.get('images')[0].get('url')
+                    url           = channel.get('live_url')
+                    livestream_id = channel.get('livestream_id')
+                    desc          = None
+                    data_new[title] = {'img': img, 'title': title, 'desc': desc, 'url': url, 'livestream_id': livestream_id}
+                    data_new2[url]  = {'img': img, 'title': title, 'desc': desc, 'url': url, 'livestream_id': livestream_id}
 
-                a = re.finditer('<h3 class="title">(?P<title>.*?)<\/h3>.*?<div class="time">(?P<time>.*?)<\/div>', d, re.S)
-                desc = ''
-                if a:
-                    for aa in a:
-                        desc += '%s: %s\n'%(aa['time'], self.removeTags( aa['title']) )
-                data_new[title] = {'img': img, 'title': title, 'desc': desc}
-        
-        img_joj24 = 'https://img.joj.sk/rx240/38a52c95-84ce-4c04-b70a-2289a9fd1541'
-        title = 'JOJ24'
-        data_new[title] = {'img': img_joj24, 'title': title, 'desc': ''}
+        return data_new, data_new2
 
-        img_joj24 = 'https://img.joj.sk/rx/d7254e8d-ffdd-44a6-b9cc-766e9e7cce6b'
-        title = 'JOJ Šport'
-        data_new[title] = {'img': img_joj24, 'title': title, 'desc': ''}
+    def getLiveUrl(self, livestream_id):
 
-        
+        import requests
+        url = 'https://europe-west3-tivio-production.cloudfunctions.net/getSourceUrl'
 
-        return data_new
+        data = {
+            "data": {
+                "id": livestream_id,
+                "documentType": "tvChannel",
+                "capabilities": [{
+                    "codec": "h264",
+                    "protocol": "dash",
+                    "encryption": "none"
+                }, {
+                    "codec": "h264",
+                    "protocol": "dash",
+                    "encryption": "widevine"
+                }, {
+                    "codec": "h264",
+                    "protocol": "dash",
+                    "encryption": "playready"
+                }, {
+                    "codec": "h264",
+                    "protocol": "hls",
+                    "encryption": "none"
+                }]
+            }
+        }
+
+        r = requests.post(url, json=data)
+
+        if r.status_code == 200:
+            try:
+                return r.json().get('result').get('url')
+            except:
+                return None
+        else:
+            return None
+
 
     def resolve(self, item, captcha_cb=None, select_cb=None):
         result = []
         item = item.copy()
         url = item['url']
-        if url.endswith('live.html'):
-            channel = urlparse(url).netloc.split('.')[0]
-            sou = 'andromeda'
-            channel_quality_map = {'joj': ('404', '720', '1080'),
-                                   'plus': ('404', '720', '1080'),
-                                   'wau': ('404', '720', '1080'),
-                                   'joj24': ('404', '720', '1080'),
-                                   'jojko': ('404', '720', '1080'),
-                                   'jojsport': ('404', '720', '1080'),
-                                   'cinema': ('404', '720', '1080'),
-                                   }
-            for quality in channel_quality_map[channel]:
-                item = self.video_item()
-                item['quality'] = quality + 'p'
-                self.info(channel)
-                if channel == 'joj24':
-                    channel = 'joj_news'
-                elif channel == 'jojsport':
-                    channel = 'joj_sport'
-                item['url'] = f'https://live.cdn.joj.sk/live/{sou}/{channel}-{quality}.m3u8|Referer=https://media.joj.sk'
-                self.info(item)
+        if '/live/' in url:
+                r, data = self.liveInfo(url)
+                item = data[url]
+                item['url']  = self.getLiveUrl(item.get('livestream_id'))
+                item['subs'] = None
+                del item['livestream_id']
                 result.append(item)
         else:
             data = util.request(url)
