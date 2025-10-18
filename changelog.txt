@@ -1,3 +1,5 @@
+[B]1.6.1[/B] 18.10.2025
+- fix bug missing request
 [B]1.6.0[/B] 17.10.2025
 - fix live - new web
 - del premium live
