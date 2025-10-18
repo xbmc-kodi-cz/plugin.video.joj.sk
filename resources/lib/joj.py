@@ -331,7 +331,6 @@ class JojContentProvider(ContentProvider):
 
     def getLiveUrl(self, livestream_id):
 
-        import requests
         url = 'https://europe-west3-tivio-production.cloudfunctions.net/getSourceUrl'
 
         data = {
@@ -358,15 +357,18 @@ class JojContentProvider(ContentProvider):
             }
         }
 
-        r = requests.post(url, json=data)
+        data = json.dumps(data).encode('utf-8')
+        req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json'})
 
-        if r.status_code == 200:
+        with urllib.request.urlopen(req) as response:
             try:
-                return r.json().get('result').get('url')
+                response_data = response.read()
+                json_response = json.loads(response_data.decode('utf-8'))
+                return json_response.get('result').get('url')
             except:
                 return None
-        else:
-            return None
+        
+        return None
 
 
     def resolve(self, item, captcha_cb=None, select_cb=None):
